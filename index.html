@@ -48,12 +48,12 @@
             display: flex;
             width: 100%;
         }
-        /* Zee's messages on LEFT */
-        .message.zee {
+        /* Messages on LEFT side */
+        .message.left {
             justify-content: flex-start;
         }
-        /* Maria's messages on RIGHT */
-        .message.maria {
+        /* Messages on RIGHT side */
+        .message.right {
             justify-content: flex-end;
         }
         .message-content {
@@ -63,16 +63,26 @@
             position: relative;
             word-wrap: break-word;
         }
-        /* Zee's bubble - green on LEFT */
+        /* Zee's bubble - green (can be on left or right) */
         .message.zee .message-content {
             background: #48bb78;
             color: white;
+        }
+        .message.left.zee .message-content {
             border-bottom-left-radius: 5px;
         }
-        /* Maria's bubble - pink on RIGHT */
+        .message.right.zee .message-content {
+            border-bottom-right-radius: 5px;
+        }
+        /* Maria's bubble - pink (can be on left or right) */
         .message.maria .message-content {
             background: #f687b3;
             color: white;
+        }
+        .message.left.maria .message-content {
+            border-bottom-left-radius: 5px;
+        }
+        .message.right.maria .message-content {
             border-bottom-right-radius: 5px;
         }
         .message-header {
@@ -81,10 +91,11 @@
             margin-bottom: 5px;
             font-size: 0.8rem;
         }
-        .message.zee .message-header {
+        .message.left .message-header {
             color: #22543d;
+            justify-content: flex-start;
         }
-        .message.maria .message-header {
+        .message.right .message-header {
             color: #742a2a;
             justify-content: flex-end;
         }
@@ -266,15 +277,19 @@
             }
         });
 
-        // Chat setup - Fixed IDs to ensure proper side detection
+        // Chat setup
         const CHAT_ID = 'zee_maria_chat';
-        // Use fixed prefixes for Zee and Maria to ensure consistent identification
         const ZEE_ID = 'ZEE_USER';
         const MARIA_ID = 'MARIA_USER';
         
         // Current user starts as Zee
         let currentUser = ZEE_ID;
         let currentUserName = 'Zee';
+        
+        // Track the last message side to alternate
+        let lastMessageSide = 'right'; // Start with 'right' so first message goes to 'left'
+        
+        // Recording variables
         let mediaRecorder;
         let audioChunks = [];
         let recordingTimeout;
@@ -285,12 +300,12 @@
                 currentUser = MARIA_ID;
                 currentUserName = 'Maria';
                 document.getElementById('userDisplay').innerHTML = 'Zee 💚 vs Maria 💖 (You: Maria)';
-                debug('Switched to Maria - messages will appear on RIGHT side (pink)');
+                debug('Switched to Maria');
             } else {
                 currentUser = ZEE_ID;
                 currentUserName = 'Zee';
                 document.getElementById('userDisplay').innerHTML = 'Zee 💚 vs Maria 💖 (You: Zee)';
-                debug('Switched to Zee - messages will appear on LEFT side (green)');
+                debug('Switched to Zee');
             }
         });
 
@@ -302,17 +317,35 @@
             document.getElementById('loadingMessages').style.display = 'none';
         });
 
-        // Display message function - Fixed side detection
+        // Display message function - Messages alternate sides
         function displayMessage(message, messageId) {
             if (document.getElementById(`msg-${messageId}`)) return;
             
             const container = document.getElementById('messagesContainer');
             const messageDiv = document.createElement('div');
             
-            // Determine which side the message belongs on
-            // Zee = LEFT side (green), Maria = RIGHT side (pink)
-            const messageClass = (message.senderId === ZEE_ID) ? 'zee' : 'maria';
-            messageDiv.className = `message ${messageClass}`;
+            // Get all existing messages to determine the next side
+            const existingMessages = container.getElementsByClassName('message');
+            let side = 'left'; // Default to left
+            
+            if (existingMessages.length > 0) {
+                // Get the last message's side
+                const lastMessage = existingMessages[existingMessages.length - 1];
+                if (lastMessage.classList.contains('left')) {
+                    side = 'right';
+                } else {
+                    side = 'left';
+                }
+            } else {
+                // First message goes to left
+                side = 'left';
+            }
+            
+            // Determine if sender is Zee or Maria for bubble color
+            const sender = (message.senderId === ZEE_ID) ? 'zee' : 'maria';
+            
+            // Add classes: side (left/right) and sender (zee/maria)
+            messageDiv.className = `message ${side} ${sender}`;
             messageDiv.id = `msg-${messageId}`;
 
             const time = new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -340,8 +373,7 @@
             container.appendChild(messageDiv);
             container.scrollTop = container.scrollHeight;
             
-            // Debug to confirm side placement
-            debug(`Message from ${message.senderName} placed on ${messageClass === 'zee' ? 'LEFT (green)' : 'RIGHT (pink)'} side`);
+            debug(`Message from ${message.senderName} placed on ${side} side with ${sender} color`);
         }
 
         // Send text message
@@ -467,16 +499,6 @@
                 document.getElementById('typingIndicator').textContent = '';
             }, 1000);
         });
-        
-        // Clear any old test messages that might be causing confusion
-        // This will remove all existing messages and start fresh
-        setTimeout(() => {
-            if (confirm('Clear all messages and start fresh?')) {
-                messagesRef.remove().then(() => {
-                    document.getElementById('messagesContainer').innerHTML = '<div class="loading" id="loadingMessages">Start chatting!</div>';
-                });
-            }
-        }, 1000);
     </script>
 </body>
-    </html>
+            </html>
