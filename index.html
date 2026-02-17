@@ -30,7 +30,6 @@
             color: white;
             padding: 20px;
             text-align: center;
-            cursor: pointer;
         }
         .online-status {
             color: #48bb78;
@@ -48,12 +47,12 @@
             display: flex;
             width: 100%;
         }
-        /* Messages on LEFT side */
-        .message.left {
+        /* Zee's messages on LEFT */
+        .message.zee {
             justify-content: flex-start;
         }
-        /* Messages on RIGHT side */
-        .message.right {
+        /* Maria's messages on RIGHT */
+        .message.maria {
             justify-content: flex-end;
         }
         .message-content {
@@ -63,26 +62,16 @@
             position: relative;
             word-wrap: break-word;
         }
-        /* Zee's bubble - green (can be on left or right) */
+        /* Zee's bubble - green on LEFT */
         .message.zee .message-content {
             background: #48bb78;
             color: white;
-        }
-        .message.left.zee .message-content {
             border-bottom-left-radius: 5px;
         }
-        .message.right.zee .message-content {
-            border-bottom-right-radius: 5px;
-        }
-        /* Maria's bubble - pink (can be on left or right) */
+        /* Maria's bubble - pink on RIGHT */
         .message.maria .message-content {
             background: #f687b3;
             color: white;
-        }
-        .message.left.maria .message-content {
-            border-bottom-left-radius: 5px;
-        }
-        .message.right.maria .message-content {
             border-bottom-right-radius: 5px;
         }
         .message-header {
@@ -91,11 +80,10 @@
             margin-bottom: 5px;
             font-size: 0.8rem;
         }
-        .message.left .message-header {
+        .message.zee .message-header {
             color: #22543d;
-            justify-content: flex-start;
         }
-        .message.right .message-header {
+        .message.maria .message-header {
             color: #742a2a;
             justify-content: flex-end;
         }
@@ -210,9 +198,9 @@
 </head>
 <body>
     <div class="chat-container">
-        <div class="chat-header" id="header">
+        <div class="chat-header">
             <h2>Smart Talks</h2>
-            <p id="userDisplay">Zee 💚 vs Maria 💖 (You: Zee)</p>
+            <p>Zee 💚 vs Maria 💖 (Auto-alternating)</p>
             <div class="online-status" id="connectionStatus">● Connecting...</div>
         </div>
         <div class="messages-container" id="messagesContainer">
@@ -279,35 +267,21 @@
 
         // Chat setup
         const CHAT_ID = 'zee_maria_chat';
+        
+        // Fixed IDs
         const ZEE_ID = 'ZEE_USER';
+        const ZEE_NAME = 'Zee';
         const MARIA_ID = 'MARIA_USER';
+        const MARIA_NAME = 'Maria';
         
-        // Current user starts as Zee
-        let currentUser = ZEE_ID;
-        let currentUserName = 'Zee';
-        
-        // Track the last message side to alternate
-        let lastMessageSide = 'right'; // Start with 'right' so first message goes to 'left'
+        // Track whose turn it is to send
+        let nextSender = ZEE_ID; // Start with Zee
+        let nextSenderName = ZEE_NAME;
         
         // Recording variables
         let mediaRecorder;
         let audioChunks = [];
         let recordingTimeout;
-
-        // Switch users on double-click
-        document.getElementById('header').addEventListener('dblclick', () => {
-            if (currentUser === ZEE_ID) {
-                currentUser = MARIA_ID;
-                currentUserName = 'Maria';
-                document.getElementById('userDisplay').innerHTML = 'Zee 💚 vs Maria 💖 (You: Maria)';
-                debug('Switched to Maria');
-            } else {
-                currentUser = ZEE_ID;
-                currentUserName = 'Zee';
-                document.getElementById('userDisplay').innerHTML = 'Zee 💚 vs Maria 💖 (You: Zee)';
-                debug('Switched to Zee');
-            }
-        });
 
         // Load messages
         const messagesRef = database.ref(`chats/${CHAT_ID}/messages`);
@@ -317,35 +291,16 @@
             document.getElementById('loadingMessages').style.display = 'none';
         });
 
-        // Display message function - Messages alternate sides
+        // Display message function
         function displayMessage(message, messageId) {
             if (document.getElementById(`msg-${messageId}`)) return;
             
             const container = document.getElementById('messagesContainer');
             const messageDiv = document.createElement('div');
             
-            // Get all existing messages to determine the next side
-            const existingMessages = container.getElementsByClassName('message');
-            let side = 'left'; // Default to left
-            
-            if (existingMessages.length > 0) {
-                // Get the last message's side
-                const lastMessage = existingMessages[existingMessages.length - 1];
-                if (lastMessage.classList.contains('left')) {
-                    side = 'right';
-                } else {
-                    side = 'left';
-                }
-            } else {
-                // First message goes to left
-                side = 'left';
-            }
-            
-            // Determine if sender is Zee or Maria for bubble color
-            const sender = (message.senderId === ZEE_ID) ? 'zee' : 'maria';
-            
-            // Add classes: side (left/right) and sender (zee/maria)
-            messageDiv.className = `message ${side} ${sender}`;
+            // Determine which side based on sender
+            const messageClass = (message.senderId === ZEE_ID) ? 'zee' : 'maria';
+            messageDiv.className = `message ${messageClass}`;
             messageDiv.id = `msg-${messageId}`;
 
             const time = new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -373,29 +328,42 @@
             container.appendChild(messageDiv);
             container.scrollTop = container.scrollHeight;
             
-            debug(`Message from ${message.senderName} placed on ${side} side with ${sender} color`);
+            debug(`Message from ${message.senderName} added`);
         }
 
-        // Send text message
+        // Send text message - automatically alternates between Zee and Maria
         window.sendTextMessage = function() {
             const input = document.getElementById('messageInput');
             const content = input.value.trim();
             
             if (content) {
+                // Send message as the next sender
                 const message = {
-                    senderId: currentUser,
-                    senderName: currentUserName,
+                    senderId: nextSender,
+                    senderName: nextSenderName,
                     type: 'text',
                     content: content,
                     timestamp: Date.now()
                 };
                 
                 messagesRef.push(message).catch(error => alert('Error: ' + error.message));
+                
+                // Switch to the other person for next message
+                if (nextSender === ZEE_ID) {
+                    nextSender = MARIA_ID;
+                    nextSenderName = MARIA_NAME;
+                    debug('Next message will be from Maria');
+                } else {
+                    nextSender = ZEE_ID;
+                    nextSenderName = ZEE_NAME;
+                    debug('Next message will be from Zee');
+                }
+                
                 input.value = '';
             }
         };
 
-        // Handle image
+        // Handle image - automatically alternates between Zee and Maria
         window.handleImageSelect = function(input) {
             const file = input.files[0];
             if (!file) return;
@@ -409,21 +377,35 @@
             const reader = new FileReader();
             reader.onload = function(e) {
                 const caption = prompt('Add a caption:', '') || '📷 Image';
+                
+                // Send message as the next sender
                 const message = {
-                    senderId: currentUser,
-                    senderName: currentUserName,
+                    senderId: nextSender,
+                    senderName: nextSenderName,
                     type: 'image',
                     imageData: e.target.result,
                     caption: caption,
                     timestamp: Date.now()
                 };
+                
                 messagesRef.push(message).catch(error => alert('Error: ' + error.message));
+                
+                // Switch to the other person for next message
+                if (nextSender === ZEE_ID) {
+                    nextSender = MARIA_ID;
+                    nextSenderName = MARIA_NAME;
+                    debug('Next message will be from Maria');
+                } else {
+                    nextSender = ZEE_ID;
+                    nextSenderName = ZEE_NAME;
+                    debug('Next message will be from Zee');
+                }
             };
             reader.readAsDataURL(file);
             input.value = '';
         };
 
-        // Voice recording
+        // Voice recording - automatically alternates between Zee and Maria
         window.toggleRecording = async function() {
             if (!mediaRecorder) {
                 try {
@@ -445,15 +427,28 @@
 
                         const reader = new FileReader();
                         reader.onload = function(e) {
+                            // Send message as the next sender
                             const message = {
-                                senderId: currentUser,
-                                senderName: currentUserName,
+                                senderId: nextSender,
+                                senderName: nextSenderName,
                                 type: 'voice',
                                 audioData: e.target.result,
                                 duration: blob.size / 16000,
                                 timestamp: Date.now()
                             };
+                            
                             messagesRef.push(message).catch(error => alert('Error: ' + error.message));
+                            
+                            // Switch to the other person for next message
+                            if (nextSender === ZEE_ID) {
+                                nextSender = MARIA_ID;
+                                nextSenderName = MARIA_NAME;
+                                debug('Next message will be from Maria');
+                            } else {
+                                nextSender = ZEE_ID;
+                                nextSenderName = ZEE_NAME;
+                                debug('Next message will be from Zee');
+                            }
                             
                             audioChunks = [];
                             stream.getTracks().forEach(t => t.stop());
@@ -493,7 +488,7 @@
         // Typing indicator
         let typingTimeout;
         document.getElementById('messageInput').addEventListener('input', () => {
-            document.getElementById('typingIndicator').textContent = currentUserName + ' is typing...';
+            document.getElementById('typingIndicator').textContent = 'Someone is typing...';
             clearTimeout(typingTimeout);
             typingTimeout = setTimeout(() => {
                 document.getElementById('typingIndicator').textContent = '';
@@ -501,4 +496,4 @@
         });
     </script>
 </body>
-            </html>
+    </html>
