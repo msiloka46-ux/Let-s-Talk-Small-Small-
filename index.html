@@ -37,6 +37,7 @@
             color: white;
             padding: 20px;
             text-align: center;
+            cursor: pointer;
         }
 
         .chat-header h2 {
@@ -126,15 +127,12 @@
             line-height: 1.4;
         }
 
-        .message-image, .message-voice {
-            margin-top: 5px;
-            max-width: 100%;
+        .message-image {
+            max-width: 200px;
+            max-height: 200px;
             border-radius: 10px;
             cursor: pointer;
-        }
-
-        .message-image {
-            max-height: 200px;
+            margin-top: 5px;
         }
 
         .voice-player {
@@ -144,6 +142,7 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            flex-direction: column;
         }
 
         .voice-player audio {
@@ -279,13 +278,25 @@
             cursor: pointer;
             font-size: 0.8rem;
         }
+
+        .loading {
+            text-align: center;
+            padding: 10px;
+            color: #718096;
+        }
+
+        .message-image img {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 10px;
+        }
     </style>
 </head>
 <body>
     <div class="chat-container">
-        <div class="chat-header">
+        <div class="chat-header" id="header">
             <h2>Smart Talks</h2>
-            <p>Zee 💚 vs Maria 💖</p>
+            <p>Zee 💚 vs Maria 💖 (You: Zee)</p>
             <div class="online-status">● Online</div>
         </div>
 
@@ -310,38 +321,35 @@
                 </button>
             </div>
 
-            <input type="file" id="imageInput" class="file-input" accept="image/*" onchange="sendImageMessage(this)">
+            <input type="file" id="imageInput" class="file-input" accept="image/*" onchange="handleImageSelect(this)">
 
             <div class="recording-indicator" id="recordingIndicator">
                 <div class="recording-dot"></div>
-                <span>Recording... (max 30s)</span>
+                <span>Recording... (max 10s)</span>
                 <button class="stop-recording" onclick="stopRecording()">Stop</button>
             </div>
         </div>
     </div>
 
-    <!-- Firebase SDKs -->
+    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
 
     <script>
         // Firebase configuration
         const firebaseConfig = {
-            databaseURL: "https://smart-talks-a045c-default-rtdb.firebaseio.com/",
-            storageBucket: "smart-talks-a045c.appspot.com" // You'll need to create this in Firebase Console
+            databaseURL: "https://smart-talks-a045c-default-rtdb.firebaseio.com/"
         };
 
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
-        const storage = firebase.storage();
 
         // Chat configuration
         const CHAT_ID = 'zee_maria_chat';
-        const ZEE_ID = 'zee_' + Date.now(); // Unique ID for Zee
-        const MARIA_ID = 'maria_' + Date.now(); // Unique ID for Maria
-        let currentUser = ZEE_ID; // Zee is current user (left side)
+        const ZEE_ID = 'zee_' + Math.random().toString(36).substr(2, 9);
+        const MARIA_ID = 'maria_' + Math.random().toString(36).substr(2, 9);
+        let currentUser = ZEE_ID;
         let currentUserName = 'Zee';
         
         // Recording variables
@@ -349,9 +357,8 @@
         let audioChunks = [];
         let recordingTimeout;
 
-        // Toggle between Zee and Maria (for demo purposes)
-        // In a real app, this would be based on actual user login
-        function toggleUser() {
+        // Toggle between Zee and Maria (double-click header)
+        document.getElementById('header').addEventListener('dblclick', () => {
             if (currentUser === ZEE_ID) {
                 currentUser = MARIA_ID;
                 currentUserName = 'Maria';
@@ -361,10 +368,7 @@
                 currentUserName = 'Zee';
                 document.querySelector('.chat-header p').innerHTML = 'Zee 💚 vs Maria 💖 (You: Zee)';
             }
-        }
-
-        // Add click handler to header for easy switching
-        document.querySelector('.chat-header').addEventListener('dblclick', toggleUser);
+        });
 
         // Load messages
         const messagesRef = database.ref(`chats/${CHAT_ID}/messages`);
@@ -377,6 +381,12 @@
         // Display message
         function displayMessage(message, messageId) {
             const container = document.getElementById('messagesContainer');
+            
+            // Check if message already exists
+            if (document.getElementById(`msg-${messageId}`)) {
+                return;
+            }
+
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${message.senderId === ZEE_ID ? 'zee' : 'maria'}`;
             messageDiv.id = `msg-${messageId}`;
@@ -390,16 +400,16 @@
                     contentHtml = `<div class="message-text">${message.content}</div>`;
                     break;
                 case 'image':
-                    contentHtml = `<img src="${message.imageUrl}" class="message-image" onclick="window.open(this.src)">`;
-                    if (message.content) {
-                        contentHtml += `<div class="message-text" style="margin-top:5px;">${message.content}</div>`;
+                    contentHtml = `<img src="${message.imageData}" class="message-image" onclick="window.open(this.src)">`;
+                    if (message.caption) {
+                        contentHtml += `<div class="message-text" style="margin-top:5px;">${message.caption}</div>`;
                     }
                     break;
                 case 'voice':
                     contentHtml = `
                         <div class="voice-player">
-                            <audio controls src="${message.voiceUrl}"></audio>
-                            ${message.duration ? `<span class="voice-duration">${Math.round(message.duration)}s</span>` : ''}
+                            <audio controls src="${message.audioData}"></audio>
+                            <span class="voice-duration">${Math.round(message.duration)}s</span>
                         </div>
                     `;
                     break;
@@ -438,51 +448,38 @@
             }
         }
 
-        // Send image message
-        function sendImageMessage(input) {
+        // Handle image selection
+        function handleImageSelect(input) {
             const file = input.files[0];
             if (!file) return;
 
-            // Show loading indicator
-            const loadingMsg = messagesRef.push({
-                senderId: currentUser,
-                senderName: currentUserName,
-                type: 'text',
-                content: '📸 Uploading image...',
-                timestamp: Date.now()
-            });
+            // Check file size (limit to 1MB for Realtime Database)
+            if (file.size > 1024 * 1024) {
+                alert('Image too large! Please select an image under 1MB.');
+                input.value = '';
+                return;
+            }
 
-            // Upload to Firebase Storage (you need to enable Storage in Firebase Console)
-            const storageRef = storage.ref(`images/${Date.now()}_${file.name}`);
-            const uploadTask = storageRef.put(file);
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const imageData = e.target.result;
+                
+                // Ask for caption
+                const caption = prompt('Add a caption (optional):', '');
+                
+                const message = {
+                    senderId: currentUser,
+                    senderName: currentUserName,
+                    type: 'image',
+                    imageData: imageData,
+                    caption: caption || '📷 Image',
+                    timestamp: Date.now()
+                };
 
-            uploadTask.on('state_changed',
-                null,
-                (error) => {
-                    console.error('Upload failed:', error);
-                    loadingMsg.remove();
-                    alert('Failed to upload image. Make sure Firebase Storage is enabled.');
-                },
-                () => {
-                    uploadTask.snapshot.ref.getDownloadURL().then((downloadURL) => {
-                        // Remove loading message
-                        loadingMsg.remove();
-                        
-                        // Send actual image message
-                        const message = {
-                            senderId: currentUser,
-                            senderName: currentUserName,
-                            type: 'image',
-                            imageUrl: downloadURL,
-                            content: '📷 Image',
-                            timestamp: Date.now()
-                        };
-                        
-                        messagesRef.push(message);
-                    });
-                }
-            );
+                messagesRef.push(message);
+            };
 
+            reader.readAsDataURL(file);
             input.value = '';
         }
 
@@ -499,7 +496,33 @@
 
                     mediaRecorder.onstop = () => {
                         const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                        sendVoiceMessage(audioBlob);
+                        
+                        // Check file size (limit to 500KB for Realtime Database)
+                        if (audioBlob.size > 500 * 1024) {
+                            alert('Voice note too large! Please record a shorter message (max 10 seconds).');
+                            audioChunks = [];
+                            stream.getTracks().forEach(track => track.stop());
+                            mediaRecorder = null;
+                            return;
+                        }
+
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const audioData = e.target.result;
+                            
+                            const message = {
+                                senderId: currentUser,
+                                senderName: currentUserName,
+                                type: 'voice',
+                                audioData: audioData,
+                                duration: audioBlob.size / 16000, // Rough duration estimate
+                                timestamp: Date.now()
+                            };
+
+                            messagesRef.push(message);
+                        };
+
+                        reader.readAsDataURL(audioBlob);
                         
                         // Cleanup
                         audioChunks = [];
@@ -511,12 +534,12 @@
                     document.getElementById('recordingIndicator').classList.add('active');
                     document.getElementById('voiceBtn').textContent = '⏹️ Recording...';
                     
-                    // Auto-stop after 30 seconds
+                    // Auto-stop after 10 seconds (to prevent large files)
                     recordingTimeout = setTimeout(() => {
                         if (mediaRecorder && mediaRecorder.state === 'recording') {
                             stopRecording();
                         }
-                    }, 30000);
+                    }, 10000);
                     
                 } catch (err) {
                     console.error('Microphone access denied:', err);
@@ -536,48 +559,6 @@
             }
         }
 
-        function sendVoiceMessage(audioBlob) {
-            // Show loading indicator
-            const loadingMsg = messagesRef.push({
-                senderId: currentUser,
-                senderName: currentUserName,
-                type: 'text',
-                content: '🎵 Uploading voice note...',
-                timestamp: Date.now()
-            });
-
-            // Upload to Firebase Storage (you need to enable Storage in Firebase Console)
-            const storageRef = storage.ref(`voice/${Date.now()}_voice.webm`);
-            const uploadTask = storageRef.put(audioBlob);
-
-            uploadTask.on('state_changed',
-                null,
-                (error) => {
-                    console.error('Upload failed:', error);
-                    loadingMsg.remove();
-                    alert('Failed to upload voice note. Make sure Firebase Storage is enabled.');
-                },
-                () => {
-                    uploadTask.snapshot.ref.getDownloadURL().then((downloadURL) => {
-                        // Remove loading message
-                        loadingMsg.remove();
-                        
-                        // Send actual voice message
-                        const message = {
-                            senderId: currentUser,
-                            senderName: currentUserName,
-                            type: 'voice',
-                            voiceUrl: downloadURL,
-                            duration: audioBlob.size / 16000, // Rough duration estimate
-                            timestamp: Date.now()
-                        };
-                        
-                        messagesRef.push(message);
-                    });
-                }
-            );
-        }
-
         // Enter key to send
         document.getElementById('messageInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
@@ -585,16 +566,11 @@
             }
         });
 
-        // Show typing indicator
+        // Typing indicator
         let typingTimeout;
         document.getElementById('messageInput').addEventListener('input', () => {
             const indicator = document.getElementById('typingIndicator');
-            
-            if (currentUserName === 'Zee') {
-                indicator.textContent = 'Zee is typing...';
-            } else {
-                indicator.textContent = 'Maria is typing...';
-            }
+            indicator.textContent = `${currentUserName} is typing...`;
             
             clearTimeout(typingTimeout);
             typingTimeout = setTimeout(() => {
@@ -602,7 +578,17 @@
             }, 1000);
         });
 
+        // Clear old messages (optional - to prevent database from growing too large)
+        // This keeps only last 100 messages
+        setInterval(() => {
+            messagesRef.limitToFirst(50).once('value', (snapshot) => {
+                snapshot.forEach((childSnapshot) => {
+                    childSnapshot.ref.remove();
+                });
+            });
+        }, 86400000); // Once per day
+
         console.log('Chat app ready! Double-click header to switch between Zee and Maria');
     </script>
 </body>
-  </html>
+    </html>
