@@ -46,9 +46,16 @@
         .message {
             margin-bottom: 15px;
             display: flex;
+            width: 100%;
         }
-        .message.zee { justify-content: flex-start; }
-        .message.maria { justify-content: flex-end; }
+        /* Zee's messages on LEFT */
+        .message.zee {
+            justify-content: flex-start;
+        }
+        /* Maria's messages on RIGHT */
+        .message.maria {
+            justify-content: flex-end;
+        }
         .message-content {
             max-width: 70%;
             padding: 10px 15px;
@@ -56,11 +63,13 @@
             position: relative;
             word-wrap: break-word;
         }
+        /* Zee's bubble - green on LEFT */
         .message.zee .message-content {
             background: #48bb78;
             color: white;
             border-bottom-left-radius: 5px;
         }
+        /* Maria's bubble - pink on RIGHT */
         .message.maria .message-content {
             background: #f687b3;
             color: white;
@@ -71,6 +80,13 @@
             align-items: center;
             margin-bottom: 5px;
             font-size: 0.8rem;
+        }
+        .message.zee .message-header {
+            color: #22543d;
+        }
+        .message.maria .message-header {
+            color: #742a2a;
+            justify-content: flex-end;
         }
         .sender-name { font-weight: bold; margin-right: 5px; }
         .message-time { font-size: 0.7rem; opacity: 0.7; }
@@ -250,10 +266,13 @@
             }
         });
 
-        // Chat setup
+        // Chat setup - Fixed IDs to ensure proper side detection
         const CHAT_ID = 'zee_maria_chat';
-        const ZEE_ID = 'zee_' + Math.random().toString(36).substr(2, 9);
-        const MARIA_ID = 'maria_' + Math.random().toString(36).substr(2, 9);
+        // Use fixed prefixes for Zee and Maria to ensure consistent identification
+        const ZEE_ID = 'ZEE_USER';
+        const MARIA_ID = 'MARIA_USER';
+        
+        // Current user starts as Zee
         let currentUser = ZEE_ID;
         let currentUserName = 'Zee';
         let mediaRecorder;
@@ -266,10 +285,12 @@
                 currentUser = MARIA_ID;
                 currentUserName = 'Maria';
                 document.getElementById('userDisplay').innerHTML = 'Zee 💚 vs Maria 💖 (You: Maria)';
+                debug('Switched to Maria - messages will appear on RIGHT side (pink)');
             } else {
                 currentUser = ZEE_ID;
                 currentUserName = 'Zee';
                 document.getElementById('userDisplay').innerHTML = 'Zee 💚 vs Maria 💖 (You: Zee)';
+                debug('Switched to Zee - messages will appear on LEFT side (green)');
             }
         });
 
@@ -281,13 +302,17 @@
             document.getElementById('loadingMessages').style.display = 'none';
         });
 
-        // Display message function
+        // Display message function - Fixed side detection
         function displayMessage(message, messageId) {
             if (document.getElementById(`msg-${messageId}`)) return;
             
             const container = document.getElementById('messagesContainer');
             const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${message.senderId === ZEE_ID ? 'zee' : 'maria'}`;
+            
+            // Determine which side the message belongs on
+            // Zee = LEFT side (green), Maria = RIGHT side (pink)
+            const messageClass = (message.senderId === ZEE_ID) ? 'zee' : 'maria';
+            messageDiv.className = `message ${messageClass}`;
             messageDiv.id = `msg-${messageId}`;
 
             const time = new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -314,6 +339,9 @@
 
             container.appendChild(messageDiv);
             container.scrollTop = container.scrollHeight;
+            
+            // Debug to confirm side placement
+            debug(`Message from ${message.senderName} placed on ${messageClass === 'zee' ? 'LEFT (green)' : 'RIGHT (pink)'} side`);
         }
 
         // Send text message
@@ -322,14 +350,15 @@
             const content = input.value.trim();
             
             if (content) {
-                messagesRef.push({
+                const message = {
                     senderId: currentUser,
                     senderName: currentUserName,
                     type: 'text',
                     content: content,
                     timestamp: Date.now()
-                }).catch(error => alert('Error: ' + error.message));
+                };
                 
+                messagesRef.push(message).catch(error => alert('Error: ' + error.message));
                 input.value = '';
             }
         };
@@ -348,14 +377,15 @@
             const reader = new FileReader();
             reader.onload = function(e) {
                 const caption = prompt('Add a caption:', '') || '📷 Image';
-                messagesRef.push({
+                const message = {
                     senderId: currentUser,
                     senderName: currentUserName,
                     type: 'image',
                     imageData: e.target.result,
                     caption: caption,
                     timestamp: Date.now()
-                }).catch(error => alert('Error: ' + error.message));
+                };
+                messagesRef.push(message).catch(error => alert('Error: ' + error.message));
             };
             reader.readAsDataURL(file);
             input.value = '';
@@ -383,14 +413,15 @@
 
                         const reader = new FileReader();
                         reader.onload = function(e) {
-                            messagesRef.push({
+                            const message = {
                                 senderId: currentUser,
                                 senderName: currentUserName,
                                 type: 'voice',
                                 audioData: e.target.result,
                                 duration: blob.size / 16000,
                                 timestamp: Date.now()
-                            }).catch(error => alert('Error: ' + error.message));
+                            };
+                            messagesRef.push(message).catch(error => alert('Error: ' + error.message));
                             
                             audioChunks = [];
                             stream.getTracks().forEach(t => t.stop());
@@ -436,6 +467,16 @@
                 document.getElementById('typingIndicator').textContent = '';
             }, 1000);
         });
+        
+        // Clear any old test messages that might be causing confusion
+        // This will remove all existing messages and start fresh
+        setTimeout(() => {
+            if (confirm('Clear all messages and start fresh?')) {
+                messagesRef.remove().then(() => {
+                    document.getElementById('messagesContainer').innerHTML = '<div class="loading" id="loadingMessages">Start chatting!</div>';
+                });
+            }
+        }, 1000);
     </script>
 </body>
     </html>
