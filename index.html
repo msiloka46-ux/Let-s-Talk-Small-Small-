@@ -1,1 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Talks - Zee & Maria Chat</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .chat-container {
+            width: 90%;
+            max-width: 500px;
+            height: 90vh;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: #4a5568;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .chat-header h2 {
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+        }
+
+        .chat-header p {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .online-status {
+            color: #48bb78;
+            font-size: 0.8rem;
+            margin-top: 5px;
+        }
+
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f7fafc;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+        }
+
+        .message.zee {
+            justify-content: flex-start;
+        }
+
+        .message.maria {
+            justify-content: flex-end;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 10px 15px;
+            border-radius: 20px;
+            position: relative;
+            word-wrap: break-word;
+        }
+
+        .message.zee .message-content {
+            background: #48bb78;
+            color: white;
+            border-bottom-left-radius: 5px;
+        }
+
+        .message.maria .message-content {
+            background: #f687b3;
+            color: white;
+            border-bottom-right-radius: 5px;
+        }
+
+        .message-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+            font-size: 0.8rem;
+        }
+
+        .message.zee .message-header {
+            color: #22543d;
+        }
+
+        .message.maria .message-header {
+            color: #742a2a;
+            justify-content: flex-end;
+        }
+
+        .sender-name {
+            font-weight: bold;
+            margin-right: 5px;
+        }
+
+        .message-time {
+            font-size: 0.7rem;
+            opacity: 0.7;
+        }
+
+        .message-text {
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+
+        .message-image, .message-voice {
+            margin-top: 5px;
+            max-width: 100%;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        .message-image {
+            max-height: 200px;
+        }
+
+        .voice-player {
+            background: rgba(255,255,255,0.2);
+            padding: 10px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .voice-player audio {
+            max-width: 180px;
+            height: 30px;
+        }
+
+        .voice-duration {
+            font-size: 0.8rem;
+            opacity: 0.8;
+        }
+
+        .typing-indicator {
+            color: #718096;
+            font-size: 0.9rem;
+            padding: 10px;
+            font-style: italic;
+        }
+
+        .input-container {
+            background: white;
+            padding: 15px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        #messageInput {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 25px;
+            outline: none;
+            font-size: 0.95rem;
+        }
+
+        #messageInput:focus {
+            border-color: #667eea;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: space-around;
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 25px;
+            background: #4a5568;
+            color: white;
+            cursor: pointer;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            transition: background 0.3s;
+        }
+
+        .action-btn:hover {
+            background: #2d3748;
+        }
+
+        .action-btn.send-btn {
+            background: #48bb78;
+        }
+
+        .action-btn.send-btn:hover {
+            background: #38a169;
+        }
+
+        .action-btn.image-btn {
+            background: #667eea;
+        }
+
+        .action-btn.image-btn:hover {
+            background: #5a67d8;
+        }
+
+        .action-btn.voice-btn {
+            background: #f687b3;
+        }
+
+        .action-btn.voice-btn:hover {
+            background: #ed64a6;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .recording-indicator {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: #fed7d7;
+            border-radius: 25px;
+            margin-top: 10px;
+        }
+
+        .recording-indicator.active {
+            display: flex;
+        }
+
+        .recording-dot {
+            width: 10px;
+            height: 10px;
+            background: #f56565;
+            border-radius: 50%;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .stop-recording {
+            background: #f56565;
+            color: white;
+            border: none;
+            padding: 5px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h2>Smart Talks</h2>
+            <p>Zee 💚 vs Maria 💖</p>
+            <div class="online-status">● Online</div>
+        </div>
+
+        <div class="messages-container" id="messagesContainer">
+            <!-- Messages will appear here -->
+        </div>
+
+        <div class="typing-indicator" id="typingIndicator"></div>
+
+        <div class="input-container">
+            <div class="input-row">
+                <input type="text" id="messageInput" placeholder="Type a message...">
+                <button class="action-btn send-btn" onclick="sendTextMessage()">Send</button>
+            </div>
+
+            <div class="action-buttons">
+                <button class="action-btn image-btn" onclick="document.getElementById('imageInput').click()">
+                    📷 Send Image
+                </button>
+                <button class="action-btn voice-btn" id="voiceBtn" onclick="toggleRecording()">
+                    🎤 Voice Note
+                </button>
+            </div>
+
+            <input type="file" id="imageInput" class="file-input" accept="image/*" onchange="sendImageMessage(this)">
+
+            <div class="recording-indicator" id="recordingIndicator">
+                <div class="recording-dot"></div>
+                <span>Recording... (max 30s)</span>
+                <button class="stop-recording" onclick="stopRecording()">Stop</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            databaseURL: "https://smart-talks-a045c-default-rtdb.firebaseio.com/",
+            storageBucket: "smart-talks-a045c.appspot.com" // You'll need to create this in Firebase Console
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const storage = firebase.storage();
+
+        // Chat configuration
+        const CHAT_ID = 'zee_maria_chat';
+        const ZEE_ID = 'zee_' + Date.now(); // Unique ID for Zee
+        const MARIA_ID = 'maria_' + Date.now(); // Unique ID for Maria
+        let currentUser = ZEE_ID; // Zee is current user (left side)
+        let currentUserName = 'Zee';
+        
+        // Recording variables
+        let mediaRecorder;
+        let audioChunks = [];
+        let recordingTimeout;
+
+        // Toggle between Zee and Maria (for demo purposes)
+        // In a real app, this would be based on actual user login
+        function toggleUser() {
+            if (currentUser === ZEE_ID) {
+                currentUser = MARIA_ID;
+                currentUserName = 'Maria';
+                document.querySelector('.chat-header p').innerHTML = 'Zee 💚 vs Maria 💖 (You: Maria)';
+            } else {
+                currentUser = ZEE_ID;
+                currentUserName = 'Zee';
+                document.querySelector('.chat-header p').innerHTML = 'Zee 💚 vs Maria 💖 (You: Zee)';
+            }
+        }
+
+        // Add click handler to header for easy switching
+        document.querySelector('.chat-header').addEventListener('dblclick', toggleUser);
+
+        // Load messages
+        const messagesRef = database.ref(`chats/${CHAT_ID}/messages`);
+        
+        messagesRef.orderByChild('timestamp').on('child_added', (snapshot) => {
+            const message = snapshot.val();
+            displayMessage(message, snapshot.key);
+        });
+
+        // Display message
+        function displayMessage(message, messageId) {
+            const container = document.getElementById('messagesContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${message.senderId === ZEE_ID ? 'zee' : 'maria'}`;
+            messageDiv.id = `msg-${messageId}`;
+
+            const time = new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            let contentHtml = '';
+            
+            switch(message.type) {
+                case 'text':
+                    contentHtml = `<div class="message-text">${message.content}</div>`;
+                    break;
+                case 'image':
+                    contentHtml = `<img src="${message.imageUrl}" class="message-image" onclick="window.open(this.src)">`;
+                    if (message.content) {
+                        contentHtml += `<div class="message-text" style="margin-top:5px;">${message.content}</div>`;
+                    }
+                    break;
+                case 'voice':
+                    contentHtml = `
+                        <div class="voice-player">
+                            <audio controls src="${message.voiceUrl}"></audio>
+                            ${message.duration ? `<span class="voice-duration">${Math.round(message.duration)}s</span>` : ''}
+                        </div>
+                    `;
+                    break;
+            }
+
+            messageDiv.innerHTML = `
+                <div class="message-content">
+                    <div class="message-header">
+                        <span class="sender-name">${message.senderName}</span>
+                        <span class="message-time">${time}</span>
+                    </div>
+                    ${contentHtml}
+                </div>
+            `;
+
+            container.appendChild(messageDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // Send text message
+        function sendTextMessage() {
+            const input = document.getElementById('messageInput');
+            const content = input.value.trim();
+            
+            if (content) {
+                const message = {
+                    senderId: currentUser,
+                    senderName: currentUserName,
+                    type: 'text',
+                    content: content,
+                    timestamp: Date.now()
+                };
+
+                messagesRef.push(message);
+                input.value = '';
+            }
+        }
+
+        // Send image message
+        function sendImageMessage(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            // Show loading indicator
+            const loadingMsg = messagesRef.push({
+                senderId: currentUser,
+                senderName: currentUserName,
+                type: 'text',
+                content: '📸 Uploading image...',
+                timestamp: Date.now()
+            });
+
+            // Upload to Firebase Storage (you need to enable Storage in Firebase Console)
+            const storageRef = storage.ref(`images/${Date.now()}_${file.name}`);
+            const uploadTask = storageRef.put(file);
+
+            uploadTask.on('state_changed',
+                null,
+                (error) => {
+                    console.error('Upload failed:', error);
+                    loadingMsg.remove();
+                    alert('Failed to upload image. Make sure Firebase Storage is enabled.');
+                },
+                () => {
+                    uploadTask.snapshot.ref.getDownloadURL().then((downloadURL) => {
+                        // Remove loading message
+                        loadingMsg.remove();
+                        
+                        // Send actual image message
+                        const message = {
+                            senderId: currentUser,
+                            senderName: currentUserName,
+                            type: 'image',
+                            imageUrl: downloadURL,
+                            content: '📷 Image',
+                            timestamp: Date.now()
+                        };
+                        
+                        messagesRef.push(message);
+                    });
+                }
+            );
+
+            input.value = '';
+        }
+
+        // Voice recording
+        async function toggleRecording() {
+            if (!mediaRecorder) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    
+                    mediaRecorder.ondataavailable = (event) => {
+                        audioChunks.push(event.data);
+                    };
+
+                    mediaRecorder.onstop = () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        sendVoiceMessage(audioBlob);
+                        
+                        // Cleanup
+                        audioChunks = [];
+                        stream.getTracks().forEach(track => track.stop());
+                        mediaRecorder = null;
+                    };
+
+                    mediaRecorder.start();
+                    document.getElementById('recordingIndicator').classList.add('active');
+                    document.getElementById('voiceBtn').textContent = '⏹️ Recording...';
+                    
+                    // Auto-stop after 30 seconds
+                    recordingTimeout = setTimeout(() => {
+                        if (mediaRecorder && mediaRecorder.state === 'recording') {
+                            stopRecording();
+                        }
+                    }, 30000);
+                    
+                } catch (err) {
+                    console.error('Microphone access denied:', err);
+                    alert('Please allow microphone access to record voice notes.');
+                }
+            } else {
+                stopRecording();
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                clearTimeout(recordingTimeout);
+                document.getElementById('recordingIndicator').classList.remove('active');
+                document.getElementById('voiceBtn').textContent = '🎤 Voice Note';
+            }
+        }
+
+        function sendVoiceMessage(audioBlob) {
+            // Show loading indicator
+            const loadingMsg = messagesRef.push({
+                senderId: currentUser,
+                senderName: currentUserName,
+                type: 'text',
+                content: '🎵 Uploading voice note...',
+                timestamp: Date.now()
+            });
+
+            // Upload to Firebase Storage (you need to enable Storage in Firebase Console)
+            const storageRef = storage.ref(`voice/${Date.now()}_voice.webm`);
+            const uploadTask = storageRef.put(audioBlob);
+
+            uploadTask.on('state_changed',
+                null,
+                (error) => {
+                    console.error('Upload failed:', error);
+                    loadingMsg.remove();
+                    alert('Failed to upload voice note. Make sure Firebase Storage is enabled.');
+                },
+                () => {
+                    uploadTask.snapshot.ref.getDownloadURL().then((downloadURL) => {
+                        // Remove loading message
+                        loadingMsg.remove();
+                        
+                        // Send actual voice message
+                        const message = {
+                            senderId: currentUser,
+                            senderName: currentUserName,
+                            type: 'voice',
+                            voiceUrl: downloadURL,
+                            duration: audioBlob.size / 16000, // Rough duration estimate
+                            timestamp: Date.now()
+                        };
+                        
+                        messagesRef.push(message);
+                    });
+                }
+            );
+        }
+
+        // Enter key to send
+        document.getElementById('messageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendTextMessage();
+            }
+        });
+
+        // Show typing indicator
+        let typingTimeout;
+        document.getElementById('messageInput').addEventListener('input', () => {
+            const indicator = document.getElementById('typingIndicator');
+            
+            if (currentUserName === 'Zee') {
+                indicator.textContent = 'Zee is typing...';
+            } else {
+                indicator.textContent = 'Maria is typing...';
+            }
+            
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                indicator.textContent = '';
+            }, 1000);
+        });
+
+        console.log('Chat app ready! Double-click header to switch between Zee and Maria');
+    </script>
+</body>
+  </html>
